@@ -18,6 +18,8 @@ class MyServerCallbacks : public BLEServerCallbacks {
 };
 
 void BLE_UART::init() {
+    buf_lock = xSemaphoreCreateMutex();
+    xSemaphoreGive(buf_lock);
     // Create the BLE Device
     BLEDevice::init("ESP32S3 BTSerial");
     // Create the BLE Server
@@ -53,20 +55,28 @@ void BLE_UART::onDisconnect() {
     Serial.println("start advertising");
 }
 
-void BLE_UART::write(uint8_t ch) {
-    if (deviceConnected) {
-        pTxCharacteristic->setValue(&ch, 1);
-        pTxCharacteristic->notify();
-    } else {
-        Serial.println("Device not connected");
+void BLE_UART::write(uint8_t *str, uint8_t len) {
+    while (bufLen != 0) {
+        delay(10);
     }
+
+    xSemaphoreTake(buf_lock, portMAX_DELAY);
+    memcpy(buf, str, len);
+    bufLen = len;
+    xSemaphoreGive(buf_lock);
 }
 
-void BLE_UART::write(uint8_t *str, uint8_t len) {
+void BLE_UART::TrySend() {
+    xSemaphoreTake(buf_lock, portMAX_DELAY);
+    if (bufLen == 0) goto __exit;
     if (deviceConnected) {
-        pTxCharacteristic->setValue(str, len);
+        pTxCharacteristic->setValue(buf, bufLen);
         pTxCharacteristic->notify();
+        bufLen = 0;
     } else {
         Serial.println("Device not connected");
+        bufLen = 0;
     }
+__exit:
+    xSemaphoreGive(buf_lock);
 }

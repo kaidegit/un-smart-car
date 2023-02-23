@@ -2,6 +2,9 @@
 
 #include "stdint.h"
 
+#include "freertos/freeRTOS.h"
+#include "freertos/semphr.h"
+
 #include <BLE2902.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -18,16 +21,18 @@ class BLE_UART {
     BLECharacteristic *pTxCharacteristic = NULL;
     BLECharacteristic *pRxCharacteristic = NULL;
     bool deviceConnected = false;
-    bool oldDeviceConnected = false;
-    uint8_t txValue = 0;
+
+    uint8_t buf[1024];
+    int bufLen = 0;
+    SemaphoreHandle_t buf_lock = NULL;
 
    public:
-    BLE_UART();
+    BLE_UART(){};
     ~BLE_UART(){};
     void init();
     // void loop();
     void onConnect();
     void onDisconnect();
-    void write(uint8_t ch);
+    void TrySend();
     void write(uint8_t* str, uint8_t len);
 };
