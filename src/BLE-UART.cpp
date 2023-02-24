@@ -4,6 +4,8 @@
 
 using funCB = std::function<void()>;
 
+volatile bool isStart = false;
+
 class MyServerCallbacks : public BLEServerCallbacks {
    public:
     funCB deviceConnected = NULL;
@@ -15,6 +17,16 @@ class MyServerCallbacks : public BLEServerCallbacks {
     void onConnect(BLEServer *pServer) { deviceConnected(); }
 
     void onDisconnect(BLEServer *pServer) { deviceDisconnected(); }
+};
+
+class MyCallbacks : public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+        std::string rxValue = pCharacteristic->getValue();
+
+        if (rxValue.length() > 0) {
+            isStart = true;
+        }
+    }
 };
 
 void BLE_UART::init() {
@@ -30,14 +42,15 @@ void BLE_UART::init() {
     // Create the BLE Service
     BLEService *pService = pServer->createService(SERVICE_UUID);
     // Create a BLE Characteristic
-    pTxCharacteristic =
-        pService->createCharacteristic(CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
+    pTxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_TX,
+                                                       BLECharacteristic::PROPERTY_NOTIFY |
+                                                           BLECharacteristic::PROPERTY_WRITE);
     pTxCharacteristic->addDescriptor(new BLE2902());
-    // BLECharacteristic *pRxCharacteristic = pService->createCharacteristic(
-    //     CHARACTERISTIC_UUID_RX,
-    //     BLECharacteristic::PROPERTY_WRITE
-    // );
-    // pRxCharacteristic->setCallbacks(new MyCallbacks());
+    pTxCharacteristic->setCallbacks(new MyCallbacks());
+    BLECharacteristic *pRxCharacteristic =
+        pService->createCharacteristic(CHARACTERISTIC_UUID_RX,
+        BLECharacteristic::PROPERTY_WRITE);
+    pRxCharacteristic->setCallbacks(new MyCallbacks());
     pService->start();
     pServer->getAdvertising()->start();
 }
@@ -55,31 +68,30 @@ void BLE_UART::onDisconnect() {
     Serial.println("start advertising");
 }
 
-size_t BLE_UART::printf(const char *format, ...)
-{
+size_t BLE_UART::printf(const char *format, ...) {
     char loc_buf[64];
-    char * temp = loc_buf;
+    char *temp = loc_buf;
     va_list arg;
     va_list copy;
     va_start(arg, format);
     va_copy(copy, arg);
     int len = vsnprintf(temp, sizeof(loc_buf), format, copy);
     va_end(copy);
-    if(len < 0) {
+    if (len < 0) {
         va_end(arg);
         return 0;
     };
-    if(len >= sizeof(loc_buf)){
-        temp = (char*) malloc(len+1);
-        if(temp == NULL) {
+    if (len >= sizeof(loc_buf)) {
+        temp = (char *)malloc(len + 1);
+        if (temp == NULL) {
             va_end(arg);
             return 0;
         }
-        len = vsnprintf(temp, len+1, format, arg);
+        len = vsnprintf(temp, len + 1, format, arg);
     }
     va_end(arg);
-    write((uint8_t*)temp, len);
-    if(temp != loc_buf){
+    write((uint8_t *)temp, len);
+    if (temp != loc_buf) {
         free(temp);
     }
     return len;

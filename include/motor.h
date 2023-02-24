@@ -4,7 +4,6 @@
 
 class Motor {
    private:
-    int speed;
     int posPin, negPin;
     int posChan = -1, negChan = -1;
 
@@ -13,4 +12,6 @@ class Motor {
     ~Motor(){};
     void init();
     void SetSpeed(int speed);
+
+    int speed;
 };

@@ -36,3 +36,5 @@ class BLE_UART {
     void write(uint8_t* str, uint8_t len);
     size_t printf(const char *format, ...);
 };
+
+extern volatile bool isStart;

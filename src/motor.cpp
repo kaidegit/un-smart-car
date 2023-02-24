@@ -28,6 +28,7 @@ void Motor::init() {
 }
 
 void Motor::SetSpeed(int speed) {
+    speed = min(speed, 100);
     this->speed = speed;
     auto duty = speed * 1023 / 100;
     if (speed > 0) {

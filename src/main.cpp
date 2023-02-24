@@ -1,11 +1,12 @@
 #include <Arduino.h>
-#include <ArduinoOTA.h>
-#include <ESPmDNS.h>
-#include <WiFi.h>
-#include <WiFiUdp.h>
+// #include <ArduinoOTA.h>
+// #include <ESPmDNS.h>
+// #include <WiFi.h>
+// #include <WiFiUdp.h>
 
-#include "AnaGraySensor.h"
+// #include "AnaGraySensor.h"
 #include "BLE-UART.h"
+#include "DigGraySensor.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -17,7 +18,9 @@ const char* password = "yekai7880";
 auto LMotor = Motor(17, 18);
 auto RMotor = Motor(16, 15);
 auto ble_uart = BLE_UART();
-auto sensor = AnaGraySensor(4, 5, 6, 7, 8);
+auto sensor = DigGraySensor(3, 8, 7, 5, 6);
+
+int weight[] = {-5, -2, 0, 2, 5};
 
 void ble_task(void* arg) {
     while (1) {
@@ -26,20 +29,19 @@ void ble_task(void* arg) {
     }
 }
 
-void ota_task(void* arg) {
-    while (1) {
-        ArduinoOTA.handle();
-        vTaskDelay(10);
-    }
-}
+// void ota_task(void* arg) {
+//     while (1) {
+//         ArduinoOTA.handle();
+//         vTaskDelay(10);
+//     }
+// }
 
 void sensor_upload(void* arg) {
     while (1) {
-        ble_uart.printf("sensor:%d %d %d %d %d\r\n", sensor.sensorValue[0], sensor.sensorValue[1],
-                        sensor.sensorValue[2], sensor.sensorValue[3], sensor.sensorValue[4]);
         ble_uart.printf("state:%d %d %d %d %d\r\n", sensor.sensorState[0], sensor.sensorState[1],
                         sensor.sensorState[2], sensor.sensorState[3], sensor.sensorState[4]);
-        vTaskDelay(500);
+        ble_uart.printf("motor:%d %d\r\n", LMotor.speed, RMotor.speed);
+        vTaskDelay(200);
     }
 }
 
@@ -90,13 +92,19 @@ void setup() {
     LMotor.init();
     RMotor.init();
     sensor.init();
-    sensor.SetThreshold(400);
+    // sensor.SetThreshold(720);
     ble_uart.init();
     xTaskCreate(ble_task, "ble_task", 4096, NULL, 5, NULL);
     xTaskCreate(sensor_upload, "sensor_upload", 4096, NULL, 5, NULL);
     // xTaskCreate(ota_task, "ota_task", 4096, NULL, 5, NULL);
     // delay(10000);
+
+    // while (isStart == false) {
+    //     delay(10);
+    // }
 }
+
+int state = 0;
 
 void loop() {
     sensor.FreshValue();
@@ -105,18 +113,41 @@ void loop() {
     // ble_uart.printf("state:%d %d %d %d %d\r\n", sensor.sensorState[0], sensor.sensorState[1],
     //                 sensor.sensorState[2], sensor.sensorState[3], sensor.sensorState[4]);
     // delay(1000);
-    // 线在车右
-    if (sensor.sensorState[0] + sensor.sensorState[1] <
-        sensor.sensorState[3] + sensor.sensorState[4]) {
-        LMotor.SetSpeed(100);
-        RMotor.SetSpeed(-50);
-    } else if (sensor.sensorState[0] + sensor.sensorState[1] >
-               sensor.sensorState[3] + sensor.sensorState[4]) {
-        LMotor.SetSpeed(-50);
-        RMotor.SetSpeed(100);
-    } else {
-        LMotor.SetSpeed(50);
-        RMotor.SetSpeed(50);
+    switch (state) {
+        case 0:// 起点到圆
+        case 1:// 圆到三角
+            auto sum = 0;
+            for (auto i = 0; i < 5; i++) {
+                sum += sensor.sensorState[i] * weight[i];
+            }
+            auto speed = abs(sum) * 10 + 50;
+
+            if (sensor.sensorState[0] == 0 && sensor.sensorState[1] == 0 &&
+                sensor.sensorState[2] == 0 && sensor.sensorState[3] == 0 &&
+                sensor.sensorState[4] == 0) {
+                // 检测到可能的圆
+                RMotor.SetSpeed(60);
+                LMotor.SetSpeed(60);
+                delay(200);
+                RMotor.SetSpeed(0);
+                delay(500);
+                state ++;
+                goto _next;
+            }
+            if (sum > 0) {
+                LMotor.SetSpeed(speed);
+                RMotor.SetSpeed(-speed);
+            } else if (sum < 0) {
+                LMotor.SetSpeed(-speed);
+                RMotor.SetSpeed(speed);
+            } else {
+                LMotor.SetSpeed(60);
+                RMotor.SetSpeed(60);
+            }
+
+            break;
     }
+
+_next:
     delay(20);
 }
