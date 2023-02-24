@@ -30,9 +30,9 @@ class BLE_UART {
     BLE_UART(){};
     ~BLE_UART(){};
     void init();
-    // void loop();
     void onConnect();
     void onDisconnect();
     void TrySend();
     void write(uint8_t* str, uint8_t len);
+    size_t printf(const char *format, ...);
 };
