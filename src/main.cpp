@@ -7,6 +7,7 @@
 // #include "AnaGraySensor.h"
 #include "BLE-UART.h"
 #include "DigGraySensor.h"
+#include "Laser.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -21,6 +22,7 @@ auto LMotor = Motor(17, 18);
 auto RMotor = Motor(16, 15);
 auto ble_uart = BLE_UART();
 auto sensor = DigGraySensor(9, 3, 8, 7, 5, 6, 4);
+auto laser = Laser(12, 11);
 
 int weight[] = {-5, -3, -1, 0, 1, 3, 5};
 // int weight[] = {-3, 0, 1, 2, 3, 5, 7};
@@ -49,35 +51,10 @@ void sensor_upload(void* arg) {
                         sensor.sensorState[1], sensor.sensorState[2], sensor.sensorState[3],
                         sensor.sensorState[4], sensor.sensorState[5], sensor.sensorState[6]);
         ble_uart.printf("state: %d\r\n", state);
-        ble_uart.printf("dist: %dcm\r\n", dist);
+        ble_uart.printf("dist: %dcm\r\n", laser.GetDist());
         ble_uart.printf("motor:%d %d\r\n", LMotor.speed, RMotor.speed);
         vTaskDelay(200);
     }
-}
-
-int received_bytes = 0;
-
-void onReceiveFunction(void) {
-    // This is a callback function that will be activated on UART RX events
-    size_t available = Serial1.available();
-    received_bytes = available;
-    // Serial.printf("onReceive Callback:: There are %d bytes available: ", available);
-    char buf[received_bytes] = {0};
-    Serial1.readBytes(buf, received_bytes);
-
-    if ((buf[0] == 0x59) && (buf[1] == 0x59)) {
-        dist = buf[2] + (buf[3] << 8);
-        strength = buf[4] + (buf[5] << 8);
-        if ((strength < 1000) || (strength == 0xffff) || (dist == 0)) {
-            return;
-        }
-        // Serial.printf("dist: %dcm\r\n", dist);
-    }
-    // char hex[received_bytes * 3 + 1] = {0};
-    // for (int i = 0; i < received_bytes; i++) {
-    //     sprintf(hex + i * 3, "%02X ", buf[i]);
-    // }
-    // Serial.printf("Received: %s\r\n", hex);
 }
 
 void setup() {
@@ -129,7 +106,7 @@ void setup() {
     LMotor.init();
     RMotor.init();
     sensor.init();
-    // sensor.SetThreshold(720);
+    laser.init();
     ble_uart.init();
     xTaskCreate(ble_task, "ble_task", 4096, NULL, 5, NULL);
     xTaskCreate(sensor_upload, "sensor_upload", 4096, NULL, 5, NULL);
@@ -137,16 +114,6 @@ void setup() {
     // delay(10000);
 
     pinMode(btnPin, INPUT_PULLUP);
-
-    Serial1.begin(115200, SERIAL_8N1, 12, 11);
-    Serial1.setTimeout(5);
-    Serial1.onReceive(onReceiveFunction, true);
-    delay(1000);
-    // 50ms， 20Hz
-    uint8_t set_freq[] = {0x5A, 0x06, 0x03, 0x14, 0x00, 0x77};
-    Serial1.write(set_freq, 6);
-    // Serial1.flush();
-    Serial.println("set freq");
 }
 
 void SetSpeed(int speed) {
@@ -294,7 +261,7 @@ void loop() {
             speed = CaclSpeed();
             cnt++;
             // 40cm障碍物
-            if ((cnt > 20) && (dist <= 40)) {
+            if ((cnt > 20) && (laser.GetDist() <= 40)) {
                 RMotor.SetSpeed(0);
                 LMotor.SetSpeed(60);
                 delay(500);
