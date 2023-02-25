@@ -23,6 +23,7 @@ auto ble_uart = BLE_UART();
 auto sensor = DigGraySensor(9, 3, 8, 7, 5, 6, 4);
 
 int weight[] = {-5, -3, -1, 0, 1, 3, 5};
+// int weight[] = {-3, 0, 1, 2, 3, 5, 7};
 
 int state = 0;
 
@@ -40,15 +41,43 @@ void ble_task(void* arg) {
 //     }
 // }
 
+auto dist = 0, strength = 0;
+
 void sensor_upload(void* arg) {
     while (1) {
         ble_uart.printf("state:%d %d %d %d %d %d %d\r\n", sensor.sensorState[0],
                         sensor.sensorState[1], sensor.sensorState[2], sensor.sensorState[3],
                         sensor.sensorState[4], sensor.sensorState[5], sensor.sensorState[6]);
         ble_uart.printf("state: %d\r\n", state);
+        ble_uart.printf("dist: %dcm\r\n", dist);
         ble_uart.printf("motor:%d %d\r\n", LMotor.speed, RMotor.speed);
         vTaskDelay(200);
     }
+}
+
+int received_bytes = 0;
+
+void onReceiveFunction(void) {
+    // This is a callback function that will be activated on UART RX events
+    size_t available = Serial1.available();
+    received_bytes = available;
+    // Serial.printf("onReceive Callback:: There are %d bytes available: ", available);
+    char buf[received_bytes] = {0};
+    Serial1.readBytes(buf, received_bytes);
+
+    if ((buf[0] == 0x59) && (buf[1] == 0x59)) {
+        dist = buf[2] + (buf[3] << 8);
+        strength = buf[4] + (buf[5] << 8);
+        if ((strength < 1000) || (strength == 0xffff) || (dist == 0)) {
+            return;
+        }
+        // Serial.printf("dist: %dcm\r\n", dist);
+    }
+    // char hex[received_bytes * 3 + 1] = {0};
+    // for (int i = 0; i < received_bytes; i++) {
+    //     sprintf(hex + i * 3, "%02X ", buf[i]);
+    // }
+    // Serial.printf("Received: %s\r\n", hex);
 }
 
 void setup() {
@@ -109,7 +138,15 @@ void setup() {
 
     pinMode(btnPin, INPUT_PULLUP);
 
-    // delay(5000);
+    Serial1.begin(115200, SERIAL_8N1, 12, 11);
+    Serial1.setTimeout(5);
+    Serial1.onReceive(onReceiveFunction, true);
+    delay(1000);
+    // 50ms， 20Hz
+    uint8_t set_freq[] = {0x5A, 0x06, 0x03, 0x14, 0x00, 0x77};
+    Serial1.write(set_freq, 6);
+    // Serial1.flush();
+    Serial.println("set freq");
 }
 
 void SetSpeed(int speed) {
@@ -142,7 +179,9 @@ void loop() {
     switch (state) {
         case 0:  // 等待按键发车
             if (digitalRead(btnPin) == LOW) {
-                state++;
+                // state++;
+                // TODO: only test
+                state = 5;
             }
             cnt = 0;
             break;
@@ -151,6 +190,7 @@ void loop() {
 
             // 几秒后再判断？
             cnt++;
+            // 遇黑 直行后遇白
             if ((cnt > 100) && (sensor.GetActivePinCnt() >= 3)) {
                 waitToChangeState = true;
                 LMotor.SetSpeed(60);
@@ -186,11 +226,12 @@ void loop() {
         case 2:  // 圆转出直线
             speed = CaclSpeed();
             cnt++;
+            // 右边遇黑
             if ((cnt > 100) &&
                 (sensor.sensorState[4] + sensor.sensorState[5] + sensor.sensorState[6] >= 2)) {
                 LMotor.SetSpeed(-60);
                 RMotor.SetSpeed(-60);
-                delay(400);
+                delay(200);
                 RMotor.SetSpeed(0);
                 LMotor.SetSpeed(60);
                 delay(500);
@@ -203,13 +244,92 @@ void loop() {
             }
             SetSpeed(speed);
             break;
-        case 3:
+        case 3:  // 直线进三角
             speed = CaclSpeed();
+            cnt++;
+            // 中间白两边黑
+            if ((cnt > 25) && ((sensor.sensorState[0] + sensor.sensorState[1] > 0) &&
+                               (sensor.sensorState[5] + sensor.sensorState[6] > 0) &&
+                               sensor.sensorState[3] == 0)) {
+                LMotor.SetSpeed(-60);
+                RMotor.SetSpeed(-60);
+                delay(200);
+                RMotor.SetSpeed(0);
+                LMotor.SetSpeed(60);
+                delay(350);
+                LMotor.SetSpeed(60);
+                RMotor.SetSpeed(60);
+                delay(250);
+                state++;
+                cnt = 0;
+                goto _next;
+            }
+            SetSpeed(speed);
+            break;
+        case 4:  // 三角中间转弯
+            speed = CaclSpeed();
+            cnt++;
+            // 左边黑
+            if ((cnt > 25) &&
+                (sensor.sensorState[0] + sensor.sensorState[1] + sensor.sensorState[2] >= 2)) {
+                LMotor.SetSpeed(-60);
+                RMotor.SetSpeed(-60);
+                delay(200);
+                RMotor.SetSpeed(60);
+                LMotor.SetSpeed(0);
+                delay(1000);
+                LMotor.SetSpeed(60);
+                RMotor.SetSpeed(60);
+                delay(250);
+                state++;
+                cnt = 0;
+                goto _next;
+            }
+            SetSpeed(speed);
+            break;
+        case 5:  // 避障
+            speed = CaclSpeed();
+            cnt++;
+            // 40cm障碍物
+            if ((cnt > 20) && (dist <= 40)) {
+                RMotor.SetSpeed(0);
+                LMotor.SetSpeed(60);
+                delay(500);
+                LMotor.SetSpeed(60);
+                RMotor.SetSpeed(60);
+                delay(1500);
+                RMotor.SetSpeed(60);
+                LMotor.SetSpeed(0);
+                delay(1000);
+                LMotor.SetSpeed(60);
+                RMotor.SetSpeed(60);
+                state++;
+                cnt = 0;
+                goto _next;
+            }
+            SetSpeed(speed);
+            break;
+        case 6:  // 等待归线
+            speed = CaclSpeed();
+            cnt++;
+            // 左边有黑
+            if ((cnt > 25) &&
+                (sensor.sensorState[0] + sensor.sensorState[1] + sensor.sensorState[2] >= 1)) {
+                RMotor.SetSpeed(60);
+                LMotor.SetSpeed(60);
+                delay(200);
+                RMotor.SetSpeed(0);
+                LMotor.SetSpeed(60);
+                delay(400);
+                state++;
+                cnt = 0;
+                goto _next;
+            }
             SetSpeed(speed);
             break;
         default:
-            LMotor.SetSpeed(0);
-            RMotor.SetSpeed(0);
+            speed = CaclSpeed();
+            SetSpeed(speed);
             break;
     }
 
