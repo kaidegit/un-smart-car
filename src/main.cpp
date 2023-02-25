@@ -179,9 +179,12 @@ void loop() {
     switch (state) {
         case 0:  // 等待按键发车
             if (digitalRead(btnPin) == LOW) {
-                // state++;
+                LMotor.SetSpeed(60);
+                RMotor.SetSpeed(60);
+                delay(400);
+                state++;
                 // TODO: only test
-                state = 5;
+                // state = 7;
             }
             cnt = 0;
             break;
@@ -277,7 +280,7 @@ void loop() {
                 delay(200);
                 RMotor.SetSpeed(60);
                 LMotor.SetSpeed(0);
-                delay(1000);
+                delay(900);
                 LMotor.SetSpeed(60);
                 RMotor.SetSpeed(60);
                 delay(250);
@@ -297,10 +300,10 @@ void loop() {
                 delay(500);
                 LMotor.SetSpeed(60);
                 RMotor.SetSpeed(60);
-                delay(1500);
+                delay(1900);
                 RMotor.SetSpeed(60);
                 LMotor.SetSpeed(0);
-                delay(1000);
+                delay(900);
                 LMotor.SetSpeed(60);
                 RMotor.SetSpeed(60);
                 state++;
@@ -309,7 +312,7 @@ void loop() {
             }
             SetSpeed(speed);
             break;
-        case 6:  // 等待归线
+        case 6:  // 归线
             speed = CaclSpeed();
             cnt++;
             // 左边有黑
@@ -322,10 +325,148 @@ void loop() {
                 LMotor.SetSpeed(60);
                 delay(400);
                 state++;
+
                 cnt = 0;
                 goto _next;
             }
             SetSpeed(speed);
+            break;
+        case 7:  // 大弯角
+            speed = CaclSpeed();
+            cnt++;
+            // 左边黑
+            if ((cnt > 25) &&
+                (sensor.sensorState[0] + sensor.sensorState[1] + sensor.sensorState[2] >= 2)) {
+                LMotor.SetSpeed(-60);
+                RMotor.SetSpeed(-60);
+                delay(100);
+                RMotor.SetSpeed(60);
+                LMotor.SetSpeed(0);
+                delay(500);
+                LMotor.SetSpeed(60);
+                RMotor.SetSpeed(60);
+                delay(200);
+                state++;
+                cnt = 0;
+                goto _next;
+            }
+            SetSpeed(speed);
+            break;
+        case 8:  // 红框
+            speed = CaclSpeed();
+            cnt++;
+            if ((cnt > 25) && (sensor.GetActivePinCnt() == 7)) {
+                RMotor.SetSpeed(90);
+                LMotor.SetSpeed(90);
+                delay(500);
+                state++;
+                cnt = 0;
+                goto _next;
+            } else if ((cnt > 25) && (sensor.GetActivePinCnt() >= 5)) {
+                // 车身不正，重新巡线
+                RMotor.SetSpeed(-60);
+                LMotor.SetSpeed(-60);
+                delay(300);
+                cnt = 0;
+                goto _next;
+            }
+            SetSpeed(speed);
+            break;
+        case 9:  // 虚线后一右转直角
+            speed = CaclSpeed();
+            cnt++;
+            if ((cnt > 25) &&
+                (sensor.sensorState[4] + sensor.sensorState[5] + sensor.sensorState[6] >= 2)) {
+                LMotor.SetSpeed(-60);
+                RMotor.SetSpeed(-60);
+                delay(200);
+                RMotor.SetSpeed(0);
+                LMotor.SetSpeed(60);
+                delay(750);
+                state++;
+                cnt = 0;
+                goto _next;
+            }
+            SetSpeed(speed);
+            break;
+        case 10:  // 直角后十字架
+            speed = CaclSpeed();
+            cnt++;
+            if ((cnt > 25) && (sensor.GetActivePinCnt() >= 5)) {
+                RMotor.SetSpeed(60);
+                LMotor.SetSpeed(60);
+                delay(500);
+                state++;
+                cnt = 0;
+                goto _next;
+            }
+            SetSpeed(speed);
+            break;
+        case 11:  // 十字架后右转直角
+            speed = CaclSpeed();
+            cnt++;
+            if ((cnt > 25) &&
+                (sensor.sensorState[4] + sensor.sensorState[5] + sensor.sensorState[6] >= 2)) {
+                LMotor.SetSpeed(-60);
+                RMotor.SetSpeed(-60);
+                delay(200);
+                RMotor.SetSpeed(0);
+                LMotor.SetSpeed(60);
+                delay(750);
+                state++;
+                cnt = 0;
+                goto _next;
+            }
+            SetSpeed(speed);
+            break;
+        case 12:  // 直角后十字架
+            speed = CaclSpeed();
+            cnt++;
+            if ((cnt > 25) && (sensor.GetActivePinCnt() >= 5)) {
+                RMotor.SetSpeed(60);
+                LMotor.SetSpeed(60);
+                delay(500);
+                state++;
+                cnt = 0;
+                goto _next;
+            }
+            SetSpeed(speed);
+            break;
+        case 13:  // 十字架后右转直角
+            speed = CaclSpeed();
+            cnt++;
+            if ((cnt > 25) &&
+                (sensor.sensorState[4] + sensor.sensorState[5] + sensor.sensorState[6] >= 2)) {
+                LMotor.SetSpeed(-60);
+                RMotor.SetSpeed(-60);
+                delay(200);
+                RMotor.SetSpeed(0);
+                LMotor.SetSpeed(60);
+                delay(750);
+                state++;
+                cnt = 0;
+                goto _next;
+            }
+            SetSpeed(speed);
+            break;
+        case 14:  // 直角后起点
+            speed = CaclSpeed();
+            cnt++;
+            if ((cnt > 25) && (sensor.GetActivePinCnt() >= 5)) {
+                RMotor.SetSpeed(60);
+                LMotor.SetSpeed(60);
+                delay(500);
+                LMotor.SetSpeed(0);
+                RMotor.SetSpeed(0);
+                state++;
+                cnt = 0;
+                goto _next;
+            }
+            SetSpeed(speed);
+            break;
+        case 15:  // 到达终点 停车
+            RMotor.SetSpeed(0);
+            LMotor.SetSpeed(0);
             break;
         default:
             speed = CaclSpeed();
