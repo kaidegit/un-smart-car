@@ -1,6 +1,11 @@
 {
     "files.associations": {
         "*.c": "c",
-        "new": "cpp"
+        "new": "cpp",
+        "*.tcc": "cpp",
+        "cmath": "cpp",
+        "numeric": "cpp",
+        "cinttypes": "cpp",
+        "cstdlib": "cpp"
     }
 }

@@ -116,7 +116,7 @@ void BLE_UART::TrySend() {
         pTxCharacteristic->notify();
         bufLen = 0;
     } else {
-        Serial.println("Device not connected");
+        // Serial.println("Device not connected");
         bufLen = 0;
     }
 __exit:
