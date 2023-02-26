@@ -328,7 +328,7 @@ void loop() {
                 (sensor.sensorState[3] == 1)) {
                     RMotor.SetSpeed(60);
                     LMotor.SetSpeed(61);
-                    delay(1200);
+                    delay(1000);
                     state++;
                     cnt = 0;
                     waitToChangeState = false;
@@ -364,7 +364,7 @@ void loop() {
                 (sensor.sensorState[4] + sensor.sensorState[5] + sensor.sensorState[6] >= 2)) {
                 LMotor.SetSpeed(-60);
                 RMotor.SetSpeed(-60);
-                delay(200);
+                delay(100);
                 RMotor.SetSpeed(0);
                 LMotor.SetSpeed(60);
                 delay(750);
@@ -394,7 +394,7 @@ void loop() {
                 (sensor.sensorState[4] + sensor.sensorState[5] + sensor.sensorState[6] >= 2)) {
                 LMotor.SetSpeed(-60);
                 RMotor.SetSpeed(-60);
-                delay(200);
+                delay(100);
                 RMotor.SetSpeed(0);
                 LMotor.SetSpeed(60);
                 delay(750);
@@ -424,7 +424,7 @@ void loop() {
                 (sensor.sensorState[4] + sensor.sensorState[5] + sensor.sensorState[6] >= 2)) {
                 LMotor.SetSpeed(-60);
                 RMotor.SetSpeed(-60);
-                delay(200);
+                delay(100);
                 RMotor.SetSpeed(0);
                 LMotor.SetSpeed(60);
                 delay(750);
@@ -440,7 +440,7 @@ void loop() {
             if ((cnt > 25) && (sensor.GetActivePinCnt() >= 5)) {
                 RMotor.SetSpeed(60);
                 LMotor.SetSpeed(60);
-                delay(500);
+                delay(800);
                 LMotor.SetSpeed(0);
                 RMotor.SetSpeed(0);
                 state++;
