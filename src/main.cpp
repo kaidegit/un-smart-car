@@ -58,7 +58,7 @@ void sensor_upload(void* arg) {
 }
 
 void setup() {
-    Serial.begin(115200);
+    Serial.begin(1000000);
     // TODO OTA
     // WiFi.mode(WIFI_STA);
     // WiFi.begin(ssid, password);
@@ -146,12 +146,13 @@ void loop() {
     switch (state) {
         case 0:  // 等待按键发车
             if (digitalRead(btnPin) == LOW) {
-                LMotor.SetSpeed(60);
-                RMotor.SetSpeed(60);
-                delay(400);
-                state++;
+                // LMotor.SetSpeed(61);
+                // RMotor.SetSpeed(60);
+                // delay(5000);
+                // state++;
+
                 // TODO: only test
-                // state = 7;
+                state = 8;
             }
             cnt = 0;
             break;
@@ -244,10 +245,10 @@ void loop() {
                 (sensor.sensorState[0] + sensor.sensorState[1] + sensor.sensorState[2] >= 2)) {
                 LMotor.SetSpeed(-60);
                 RMotor.SetSpeed(-60);
-                delay(200);
+                delay(100);
                 RMotor.SetSpeed(60);
                 LMotor.SetSpeed(0);
-                delay(900);
+                delay(800);
                 LMotor.SetSpeed(60);
                 RMotor.SetSpeed(60);
                 delay(250);
@@ -261,7 +262,7 @@ void loop() {
             speed = CaclSpeed();
             cnt++;
             // 40cm障碍物
-            if ((cnt > 20) && (laser.GetDist() <= 40)) {
+            if ((cnt > 250) && (laser.GetDist() <= 40)) {
                 RMotor.SetSpeed(0);
                 LMotor.SetSpeed(60);
                 delay(500);
@@ -275,6 +276,7 @@ void loop() {
                 RMotor.SetSpeed(60);
                 state++;
                 cnt = 0;
+                waitToChangeState = false;
                 goto _next;
             }
             SetSpeed(speed);
@@ -322,11 +324,27 @@ void loop() {
         case 8:  // 红框
             speed = CaclSpeed();
             cnt++;
+            if (waitToChangeState && (sensor.GetActivePinCnt() == 1) &&
+                (sensor.sensorState[3] == 1)) {
+                    RMotor.SetSpeed(60);
+                    LMotor.SetSpeed(61);
+                    delay(1200);
+                    state++;
+                    cnt = 0;
+                    waitToChangeState = false;
+                    goto _next;
+            } else {
+                waitToChangeState = false;
+                // goto _next;
+            }
             if ((cnt > 25) && (sensor.GetActivePinCnt() == 7)) {
-                RMotor.SetSpeed(90);
-                LMotor.SetSpeed(90);
-                delay(500);
-                state++;
+                RMotor.SetSpeed(-60);
+                LMotor.SetSpeed(-60);
+                delay(250);
+                RMotor.SetSpeed(0);
+                LMotor.SetSpeed(0);
+                delay(100);
+                waitToChangeState = true;
                 cnt = 0;
                 goto _next;
             } else if ((cnt > 25) && (sensor.GetActivePinCnt() >= 5)) {
@@ -342,7 +360,7 @@ void loop() {
         case 9:  // 虚线后一右转直角
             speed = CaclSpeed();
             cnt++;
-            if ((cnt > 25) &&
+            if ((cnt > 100) &&
                 (sensor.sensorState[4] + sensor.sensorState[5] + sensor.sensorState[6] >= 2)) {
                 LMotor.SetSpeed(-60);
                 RMotor.SetSpeed(-60);
