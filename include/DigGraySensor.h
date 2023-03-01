@@ -10,7 +10,7 @@ private:
 public:
     DigGraySensor(int pin1, int pin2, int pin3, int pin4, int pin5);
     DigGraySensor(int pin1, int pin2, int pin3, int pin4, int pin5, int pin6, int pin7);
-    ~DigGraySensor();
+    ~DigGraySensor() = default;
     void init();
     void FreshValue();
     int GetActivePinCnt();

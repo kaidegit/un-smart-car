@@ -18,7 +18,6 @@ void Laser::init() {
             Serial1.readBytes(buf, available);
 
             if ((available == 9) && (buf[0] == 0x59) && (buf[1] == 0x59)) {
-                // if ((buf[0] == 0x59) && (buf[1] == 0x59)) {
                 dist = buf[2] + (buf[3] << 8);
                 strength = buf[4] + (buf[5] << 8);
                 if ((strength < 1000) || (strength == 0xffff) || (dist == 0)) {

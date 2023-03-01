@@ -13,9 +13,6 @@
 #include "freertos/task.h"
 #include "motor.h"
 
-const char* ssid = "yekai";
-const char* password = "yekai7880";
-
 int btnPin = 19;
 
 auto LMotor = Motor(17, 18);
@@ -25,7 +22,6 @@ auto sensor = DigGraySensor(9, 3, 8, 7, 5, 6, 4);
 auto laser = Laser(12, 11);
 
 int weight[] = {-5, -3, -1, 0, 1, 3, 5};
-// int weight[] = {-3, 0, 1, 2, 3, 5, 7};
 
 int state = 0;
 
@@ -35,13 +31,6 @@ void ble_task(void* arg) {
         vTaskDelay(10);
     }
 }
-
-// void ota_task(void* arg) {
-//     while (1) {
-//         ArduinoOTA.handle();
-//         vTaskDelay(10);
-//     }
-// }
 
 auto dist = 0, strength = 0;
 
@@ -59,49 +48,6 @@ void sensor_upload(void* arg) {
 
 void setup() {
     Serial.begin(1000000);
-    // TODO OTA
-    // WiFi.mode(WIFI_STA);
-    // WiFi.begin(ssid, password);
-    // while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    //     Serial.println("Connection Failed! Rebooting...");
-    //     delay(5000);
-    //     ESP.restart();
-    // }
-    // Serial.println("Connected!");
-    // Serial.printf("IP address: ");
-    // Serial.println(WiFi.localIP());
-    // ArduinoOTA.setHostname("esp32s3");
-    // ArduinoOTA.setPort(12345);
-    // ArduinoOTA
-    //     .onStart([]() {
-    //         String type;
-    //         if (ArduinoOTA.getCommand() == U_FLASH)
-    //             type = "sketch";
-    //         else  // U_SPIFFS
-    //             type = "filesystem";
-
-    //         // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using
-    //         Serial.println("Start updating " + type);
-    //     })
-    //     .onEnd([]() { Serial.println("\nEnd"); })
-    //     .onProgress([](unsigned int progress, unsigned int total) {
-    //         Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-    //     })
-    //     .onError([](ota_error_t error) {
-    //         Serial.printf("Error[%u]: ", error);
-    //         if (error == OTA_AUTH_ERROR)
-    //             Serial.println("Auth Failed");
-    //         else if (error == OTA_BEGIN_ERROR)
-    //             Serial.println("Begin Failed");
-    //         else if (error == OTA_CONNECT_ERROR)
-    //             Serial.println("Connect Failed");
-    //         else if (error == OTA_RECEIVE_ERROR)
-    //             Serial.println("Receive Failed");
-    //         else if (error == OTA_END_ERROR)
-    //             Serial.println("End Failed");
-    //     });
-
-    // ArduinoOTA.begin();
 
     LMotor.init();
     RMotor.init();
@@ -110,13 +56,11 @@ void setup() {
     ble_uart.init();
     xTaskCreate(ble_task, "ble_task", 4096, NULL, 5, NULL);
     xTaskCreate(sensor_upload, "sensor_upload", 4096, NULL, 5, NULL);
-    // xTaskCreate(ota_task, "ota_task", 4096, NULL, 5, NULL);
-    // delay(10000);
 
     pinMode(btnPin, INPUT_PULLUP);
 }
 
-void SetSpeed(int speed) {
+static void SetSpeed(int speed) {
     if (speed != 50) {
         LMotor.SetSpeed(speed);
         RMotor.SetSpeed(-speed);
@@ -126,7 +70,7 @@ void SetSpeed(int speed) {
     }
 }
 
-int CaclSpeed() {
+static int CaclSpeed() {
     int sum = 0;
     for (auto i = 0; i < 7; i++) {
         sum += sensor.sensorState[i] * weight[i];
@@ -146,20 +90,15 @@ void loop() {
     switch (state) {
         case 0:  // 等待按键发车
             if (digitalRead(btnPin) == LOW) {
-                // LMotor.SetSpeed(61);
-                // RMotor.SetSpeed(60);
-                // delay(5000);
-                // state++;
-
-                // TODO: only test
-                state = 8;
+                LMotor.SetSpeed(61);
+                RMotor.SetSpeed(60);
+                delay(500);
+                state++;
             }
             cnt = 0;
             break;
         case 1:  // 直线到圆
             speed = CaclSpeed();
-
-            // 几秒后再判断？
             cnt++;
             // 遇黑 直行后遇白
             if ((cnt > 100) && (sensor.GetActivePinCnt() >= 3)) {
@@ -170,9 +109,7 @@ void loop() {
             }
             if (waitToChangeState && (cnt > 100) && (sensor.GetActivePinCnt() == 0)) {
                 inactive_cnt++;
-                ble_uart.printf("inactive_cnt: %d\r\n", inactive_cnt);
                 if (inactive_cnt > 5) {
-                    ble_uart.printf("change state\r\n");
                     // 检测到可能的圆
                     LMotor.SetSpeed(-60);
                     RMotor.SetSpeed(-60);
@@ -261,7 +198,7 @@ void loop() {
         case 5:  // 避障
             speed = CaclSpeed();
             cnt++;
-            // 40cm障碍物
+            // 40cm内开始避开障碍物
             if ((cnt > 250) && (laser.GetDist() <= 40)) {
                 RMotor.SetSpeed(0);
                 LMotor.SetSpeed(60);

@@ -1,8 +1,8 @@
-#include "Arduino.h"
 #include "DigGraySensor.h"
 
-DigGraySensor::DigGraySensor(int pin1, int pin2, int pin3, int pin4, int pin5)
-{
+#include "Arduino.h"
+
+DigGraySensor::DigGraySensor(int pin1, int pin2, int pin3, int pin4, int pin5) {
     pinArr[0] = pin1;
     pinArr[1] = pin2;
     pinArr[2] = pin3;
@@ -11,8 +11,7 @@ DigGraySensor::DigGraySensor(int pin1, int pin2, int pin3, int pin4, int pin5)
     pinNum = 5;
 }
 
-DigGraySensor::DigGraySensor(int pin1, int pin2, int pin3, int pin4, int pin5, int pin6, int pin7)
-{
+DigGraySensor::DigGraySensor(int pin1, int pin2, int pin3, int pin4, int pin5, int pin6, int pin7) {
     pinArr[0] = pin1;
     pinArr[1] = pin2;
     pinArr[2] = pin3;
@@ -23,31 +22,21 @@ DigGraySensor::DigGraySensor(int pin1, int pin2, int pin3, int pin4, int pin5, i
     pinNum = 7;
 }
 
-DigGraySensor::~DigGraySensor()
-{
-}
-    
-void DigGraySensor::init()
-{
-    for (int i = 0; i < pinNum; i++)
-    {
+void DigGraySensor::init() {
+    for (int i = 0; i < pinNum; i++) {
         pinMode(pinArr[i], INPUT);
     }
 }
 
-void DigGraySensor::FreshValue()
-{
-    for (int i = 0; i < pinNum; i++)
-    {
+void DigGraySensor::FreshValue() {
+    for (int i = 0; i < pinNum; i++) {
         sensorState[i] = digitalRead(pinArr[i]);
     }
 }
 
-int DigGraySensor::GetActivePinCnt()
-{
+int DigGraySensor::GetActivePinCnt() {
     int sum = 0;
-    for (int i = 0; i < pinNum; i++)
-    {
+    for (int i = 0; i < pinNum; i++) {
         sum += sensorState[i];
     }
     return sum;
